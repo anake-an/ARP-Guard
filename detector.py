@@ -1,9 +1,6 @@
 # =============================================================================
-# Name        : ANIQ NAJMUDDIN BIN SHARIFUDDIN
-# Matric No   : BI23110059
-# Course      : KP35203 - Network Programming
-# Assignment  : Individual Project Assignment (20%)
 # Project     : ARP Guard - ARP Spoofing Detector & Active Defender
+# Author      : Aniq Najmuddin bin Sharifuddin
 # File        : detector.py
 # Description : ARP spoofing detection engine. Maintains a trusted IP-to-MAC
 #               mapping table and raises alerts when a new ARP Reply attempts
