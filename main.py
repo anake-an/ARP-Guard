@@ -47,8 +47,7 @@ BANNER = f"""
  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝          ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝
 {Style.RESET_ALL}
   {Fore.WHITE}ARP Spoofing Detector & Active Defender{Style.RESET_ALL}
-  {Fore.YELLOW}KP35203 - Network Programming | Individual Project{Style.RESET_ALL}
-  {Fore.YELLOW}ANIQ NAJMUDDIN BIN SHARIFUDDIN | BI23110059{Style.RESET_ALL}
+  {Fore.YELLOW}Developed by Aniq Najmuddin bin Sharifuddin{Style.RESET_ALL}
 """
 
 
