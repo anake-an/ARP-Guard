@@ -1,0 +1,586 @@
+<!--
+  =============================================================================
+  Name        : ANIQ NAJMUDDIN BIN SHARIFUDDIN
+  Matric No   : BI23110059
+  Course      : KP35203 - Network Programming
+  Assignment  : Individual Project Assignment (20%)
+  Project     : ARP Guard - ARP Spoofing Detector & Active Defender
+  File        : templates/dashboard.html
+  Description : Live web dashboard for ARP Guard. Displays the trusted ARP
+                table, real-time spoofing alerts, and system statistics.
+                Receives live push events via Socket.IO WebSocket connection.
+  =============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARP Guard — Live Dashboard</title>
+
+  <!-- Socket.IO client (served by Flask-SocketIO) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Base & reset                                                         */
+    /* ------------------------------------------------------------------ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d1117;
+      --surface:    #161b22;
+      --border:     #30363d;
+      --text:       #e6edf3;
+      --muted:      #8b949e;
+      --accent:     #58a6ff;
+      --danger:     #f85149;
+      --success:    #3fb950;
+      --warning:    #d29922;
+      --radius:     8px;
+      --mono:       'Courier New', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Header                                                               */
+    /* ------------------------------------------------------------------ */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+    }
+
+    header h1 span { color: var(--text); }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Attribution bar                                                      */
+    /* ------------------------------------------------------------------ */
+    .attribution {
+      background: #0d1117;
+      border-bottom: 1px solid var(--border);
+      padding: 6px 28px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: flex;
+      gap: 24px;
+    }
+
+    .attribution span { color: var(--text); }
+
+    /* ------------------------------------------------------------------ */
+    /* Layout                                                               */
+    /* ------------------------------------------------------------------ */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      gap: 20px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Stat cards                                                           */
+    /* ------------------------------------------------------------------ */
+    .stats-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+
+    .stat-card .label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    .stat-card.danger  .value { color: var(--danger); }
+    .stat-card.success .value { color: var(--success); }
+    .stat-card.accent  .value { color: var(--accent); }
+
+    /* ------------------------------------------------------------------ */
+    /* Panel cards                                                          */
+    /* ------------------------------------------------------------------ */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-full { grid-column: 1 / -1; }
+    .panel-half { grid-column: span 2; }
+
+    .panel-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-header h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent);
+    }
+
+    .panel-header .count {
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2px 10px;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 380px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Table styles                                                         */
+    /* ------------------------------------------------------------------ */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+
+    thead th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover { background: rgba(88,166,255,0.06); }
+    tbody tr:last-child { border-bottom: none; }
+
+    td { padding: 10px 16px; font-family: var(--mono); font-size: 0.82rem; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .badge-danger  { background: rgba(248,81,73,0.15);  color: var(--danger); }
+    .badge-success { background: rgba(63,185,80,0.15);  color: var(--success); }
+    .badge-warning { background: rgba(210,153,34,0.15); color: var(--warning); }
+
+    /* alert row flash */
+    .flash {
+      animation: rowflash 1.2s ease;
+    }
+
+    @keyframes rowflash {
+      0%   { background: rgba(248,81,73,0.25); }
+      100% { background: transparent; }
+    }
+
+    /* empty state */
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Event log (scrolling feed)                                          */
+    /* ------------------------------------------------------------------ */
+    .log-feed {
+      padding: 12px 16px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .log-entry { display: flex; gap: 10px; }
+    .log-entry .ts  { color: var(--muted); white-space: nowrap; }
+    .log-entry.alert .msg { color: var(--danger); font-weight: 600; }
+    .log-entry.info  .msg { color: var(--text); }
+    .log-entry.warn  .msg { color: var(--warning); }
+
+    /* ------------------------------------------------------------------ */
+    /* Responsive                                                           */
+    /* ------------------------------------------------------------------ */
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: 1fr; }
+      .panel-half { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Header                                                               -->
+  <!-- ------------------------------------------------------------------ -->
+  <header>
+    <h1>ARP<span>Guard</span> &mdash; Live Dashboard</h1>
+    <div class="status-badge">
+      <div class="status-dot" id="conn-dot"></div>
+      <span id="conn-label">Connecting…</span>
+    </div>
+  </header>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Attribution                                                          -->
+  <!-- ------------------------------------------------------------------ -->
+  <div class="attribution">
+    <div>Student: <span>ANIQ NAJMUDDIN BIN SHARIFUDDIN</span></div>
+    <div>Matric: <span>BI23110059</span></div>
+    <div>Course: <span>KP35203 — Network Programming</span></div>
+    <div>Project: <span>ARP Guard — ARP Spoofing Detector &amp; Active Defender</span></div>
+  </div>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Main content                                                         -->
+  <!-- ------------------------------------------------------------------ -->
+  <main>
+
+    <!-- Stat cards row -->
+    <div class="stats-row">
+      <div class="stat-card accent">
+        <div class="label">Packets Analysed</div>
+        <div class="value" id="stat-packets">0</div>
+      </div>
+      <div class="stat-card success">
+        <div class="label">Known Hosts</div>
+        <div class="value" id="stat-hosts">0</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="label">Spoofing Alerts</div>
+        <div class="value" id="stat-alerts">0</div>
+      </div>
+    </div>
+
+    <!-- ARP Table panel -->
+    <div class="panel panel-half">
+      <div class="panel-header">
+        <h2>Trusted ARP Table</h2>
+        <span class="count" id="arp-count">0 entries</span>
+      </div>
+      <div class="panel-body">
+        <table id="arp-table">
+          <thead>
+            <tr>
+              <th>IP Address</th>
+              <th>MAC Address</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="arp-tbody">
+            <tr><td colspan="3" class="empty-state">Waiting for ARP traffic…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Alerts panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>&#x26A0; Spoofing Alerts</h2>
+        <span class="count" id="alert-count">0 alerts</span>
+      </div>
+      <div class="panel-body">
+        <table id="alert-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>IP</th>
+              <th>Severity</th>
+            </tr>
+          </thead>
+          <tbody id="alert-tbody">
+            <tr><td colspan="3" class="empty-state">No alerts detected</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Live event log -->
+    <div class="panel panel-full">
+      <div class="panel-header">
+        <h2>Live Event Log</h2>
+        <span class="count" id="log-count">0 events</span>
+      </div>
+      <div class="panel-body">
+        <div class="log-feed" id="log-feed">
+          <div class="log-entry info">
+            <span class="ts">--:--:--</span>
+            <span class="msg">Waiting for events…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- JavaScript                                                           -->
+  <!-- ------------------------------------------------------------------ -->
+  <script>
+    // -----------------------------------------------------------------------
+    // Socket.IO connection
+    // -----------------------------------------------------------------------
+    const socket = io();
+
+    const connDot   = document.getElementById("conn-dot");
+    const connLabel = document.getElementById("conn-label");
+
+    socket.on("connect", () => {
+      connDot.style.background = "var(--success)";
+      connLabel.textContent    = "Connected";
+      // Request a fresh stats snapshot on connect
+      socket.emit("request_stats");
+      // Also do a full HTTP fetch to populate tables immediately
+      fetchARPTable();
+      fetchAlerts();
+      fetchEvents();
+    });
+
+    socket.on("disconnect", () => {
+      connDot.style.background = "var(--danger)";
+      connLabel.textContent    = "Disconnected";
+    });
+
+    // Live stats push from server
+    socket.on("stats_update", (data) => {
+      document.getElementById("stat-packets").textContent = data.packets_processed ?? 0;
+      document.getElementById("stat-hosts").textContent   = data.known_hosts ?? 0;
+      document.getElementById("stat-alerts").textContent  = data.total_alerts ?? 0;
+    });
+
+    // Live alert push — server emits this the moment spoofing is detected
+    socket.on("new_alert", (alert) => {
+      prependAlertRow(alert);
+      appendLogEntry("alert", alert.timestamp, alert.message);
+      // Refresh stats & ARP table after an alert
+      fetchStats();
+      fetchARPTable();
+      // Flash the alert counter
+      const el = document.getElementById("stat-alerts");
+      el.style.color = "#fff";
+      setTimeout(() => { el.style.color = ""; }, 600);
+    });
+
+    // -----------------------------------------------------------------------
+    // HTTP fetch helpers
+    // -----------------------------------------------------------------------
+
+    function fetchStats() {
+      fetch("/api/status")
+        .then(r => r.json())
+        .then(data => {
+          const s = data.stats || {};
+          document.getElementById("stat-packets").textContent = s.packets_processed ?? 0;
+          document.getElementById("stat-hosts").textContent   = s.known_hosts ?? 0;
+          document.getElementById("stat-alerts").textContent  = s.total_alerts ?? 0;
+        })
+        .catch(console.error);
+    }
+
+    function fetchARPTable() {
+      fetch("/api/arp-table")
+        .then(r => r.json())
+        .then(data => {
+          const tbody = document.getElementById("arp-tbody");
+          const count = data.count || 0;
+          document.getElementById("arp-count").textContent = count + " entries";
+
+          if (count === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No ARP entries yet…</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = data.table.map(row => `
+            <tr>
+              <td>${row.ip}</td>
+              <td>${row.mac}</td>
+              <td><span class="badge badge-success">Trusted</span></td>
+            </tr>
+          `).join("");
+        })
+        .catch(console.error);
+    }
+
+    function fetchAlerts() {
+      fetch("/api/alerts?limit=50")
+        .then(r => r.json())
+        .then(data => {
+          const tbody = document.getElementById("alert-tbody");
+          const count = data.count || 0;
+          document.getElementById("alert-count").textContent = count + " alerts";
+
+          if (count === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No alerts detected</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = data.alerts.map(a => `
+            <tr>
+              <td>${a.timestamp}</td>
+              <td>${a.ip}</td>
+              <td><span class="badge badge-danger">${a.severity}</span></td>
+            </tr>
+          `).join("");
+        })
+        .catch(console.error);
+    }
+
+    function fetchEvents() {
+      fetch("/api/events?limit=100")
+        .then(r => r.json())
+        .then(data => {
+          if (!data.events || data.events.length === 0) return;
+          const feed  = document.getElementById("log-feed");
+          const count = data.count || 0;
+          document.getElementById("log-count").textContent = count + " events";
+
+          feed.innerHTML = data.events.map(e => {
+            const cls = e.level === "ALERT" ? "alert" : e.level === "WARNING" ? "warn" : "info";
+            const ts  = (e.timestamp || "").slice(11, 19); // HH:MM:SS
+            return `<div class="log-entry ${cls}">
+              <span class="ts">${ts}</span>
+              <span class="msg">[${e.level}] ${e.message || e.type}</span>
+            </div>`;
+          }).join("");
+        })
+        .catch(console.error);
+    }
+
+    // -----------------------------------------------------------------------
+    // DOM helpers
+    // -----------------------------------------------------------------------
+
+    function prependAlertRow(alert) {
+      const tbody = document.getElementById("alert-tbody");
+      // Remove empty-state row if present
+      const empty = tbody.querySelector(".empty-state");
+      if (empty) empty.parentElement.remove();
+
+      const tr = document.createElement("tr");
+      tr.classList.add("flash");
+      tr.innerHTML = `
+        <td>${alert.timestamp}</td>
+        <td>${alert.ip}</td>
+        <td><span class="badge badge-danger">${alert.severity}</span></td>
+      `;
+      tbody.prepend(tr);
+
+      // Update counter badge
+      const countEl = document.getElementById("alert-count");
+      const n = parseInt(countEl.textContent) || 0;
+      countEl.textContent = (n + 1) + " alerts";
+    }
+
+    function appendLogEntry(type, timestamp, message) {
+      const feed = document.getElementById("log-feed");
+      // Remove placeholder
+      const placeholder = feed.querySelector(".log-entry");
+      if (placeholder && placeholder.querySelector(".ts").textContent === "--:--:--") {
+        placeholder.remove();
+      }
+
+      const ts  = (timestamp || "").slice(11, 19);
+      const cls = type === "alert" ? "alert" : "info";
+      const div = document.createElement("div");
+      div.className = `log-entry ${cls}`;
+      div.innerHTML = `<span class="ts">${ts}</span><span class="msg">[ALERT] ${message}</span>`;
+      feed.prepend(div);
+
+      // Update event count
+      const countEl = document.getElementById("log-count");
+      const n = parseInt(countEl.textContent) || 0;
+      countEl.textContent = (n + 1) + " events";
+    }
+
+    // -----------------------------------------------------------------------
+    // Polling — refresh ARP table and stats every 5 seconds
+    // -----------------------------------------------------------------------
+    setInterval(() => {
+      fetchARPTable();
+      fetchStats();
+    }, 5000);
+
+  </script>
+</body>
+</html>

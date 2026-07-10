@@ -1,0 +1,16 @@
+# =============================================================================
+# Name        : ANIQ NAJMUDDIN BIN SHARIFUDDIN
+# Matric No   : BI23110059
+# Course      : KP35203 - Network Programming
+# Assignment  : Individual Project Assignment (20%)
+# Project     : ARP Guard - ARP Spoofing Detector & Active Defender
+# File        : requirements.txt
+# Description : Python dependencies required to run the ARP Guard system
+# =============================================================================
+
+scapy==2.5.0
+flask==3.0.3
+flask-socketio==5.3.6
+eventlet==0.36.1
+netifaces2
+colorama==0.4.6
