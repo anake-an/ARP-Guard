@@ -33,7 +33,7 @@ BANNER = f"""
  ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝
 {Style.RESET_ALL}
   {Fore.YELLOW}ARP Spoofing Attack Simulator — FOR TESTING ONLY{Style.RESET_ALL}
-  {Fore.YELLOW}KP35203 - Network Programming | ANIQ NAJMUDDIN | BI23110059{Style.RESET_ALL}
+  {Fore.YELLOW}Developed by Aniq Najmuddin bin Sharifuddin{Style.RESET_ALL}
 """
 
 
