@@ -3,7 +3,7 @@
 
 **ARP Guard** is a Python-based network security tool that detects and actively counters ARP spoofing attacks in real time. 
 
-The system passively monitors ARP traffic on a chosen network interface, builds a trusted IP-to-MAC mapping table, and immediately raises an alert the moment a packet contradicts a known-good mapping. When spoofing is confirmed, it does not just log the event — it fires a corrective gratuitous ARP burst to restore the legitimate mapping across the LAN. A live web dashboard provides the operator full visibility over all detected events.
+The system passively monitors ARP traffic on a chosen network interface, builds a trusted IP-to-MAC mapping table, and immediately raises an alert the moment a packet contradicts a known-good mapping. When spoofing is confirmed, it does not just log the event, it fires a corrective gratuitous ARP burst to restore the legitimate mapping across the LAN. A live web dashboard provides the operator full visibility over all detected events.
 
 ---
 
