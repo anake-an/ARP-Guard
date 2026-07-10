@@ -1,9 +1,6 @@
 # =============================================================================
-# Name        : ANIQ NAJMUDDIN BIN SHARIFUDDIN
-# Matric No   : BI23110059
-# Course      : KP35203 - Network Programming
-# Assignment  : Individual Project Assignment (20%)
 # Project     : ARP Guard - ARP Spoofing Detector & Active Defender
+# Author      : Aniq Najmuddin bin Sharifuddin
 # File        : sniffer.py
 # Description : ARP packet capture module using Scapy. Sniffs all ARP traffic
 #               on the specified network interface and forwards each packet
